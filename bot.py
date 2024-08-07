@@ -42,13 +42,22 @@ def get_user_genres(conn, user_id):
     c.execute('SELECT COUNT(DISTINCT genre) FROM user_genres WHERE user_id = ?', (user_id,))
     return c.fetchone()[0]
 
-def get_leaderboard(conn):
+def get_leaderboard_data():
+    conn = sqlite3.connect('leaderboard.db')
     c = conn.cursor()
-    c.execute('''SELECT discord_id, (SELECT SUM(points) FROM books WHERE user_id = users.id) + 
-                 (SELECT COUNT(DISTINCT genre) * ? FROM user_genres WHERE user_id = users.id) as total_points
-                 FROM users
-                 ORDER BY total_points DESC''', (BONUS_POINTS,))
-    return c.fetchall()
+    c.execute('SELECT discord_id, points FROM users ORDER BY points DESC')
+    data = c.fetchall()
+    conn.close()
+    return data
+
+
+# def get_leaderboard(conn):
+#     c = conn.cursor()
+#     c.execute('''SELECT discord_id, (SELECT SUM(points) FROM books WHERE user_id = users.id) + 
+#                  (SELECT COUNT(DISTINCT genre) * ? FROM user_genres WHERE user_id = users.id) as total_points
+#                  FROM users
+#                  ORDER BY total_points DESC''', (BONUS_POINTS,))
+#     return c.fetchall()
 
 @bot.event
 async def on_ready():
@@ -83,13 +92,13 @@ async def score(ctx):
 
 @bot.command(name='leaderboard')
 async def leaderboard(ctx):
-    conn = sqlite3.connect('books.db')
-    leaderboard = get_leaderboard(conn)
-    conn.close()
-    
+    leaderboard_data = get_leaderboard_data()
     message = "Leaderboard:\n"
-    for i, (discord_id, total_points) in enumerate(leaderboard, start=1):
-        message += f"{i}. {discord_id}: {total_points:.2f} points\n"
+    for i, (discord_id, points) in enumerate(leaderboard_data, start=1):
+        if points is None:
+            points = 0.0
+        message += f"{i}. {discord_id}: {points:.2f} points\n"
     await ctx.send(message)
+
 
 bot.run('YOUR_BOT_TOKEN')
